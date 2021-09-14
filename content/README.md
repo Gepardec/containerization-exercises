@@ -36,6 +36,8 @@ Please note that examples of expected output have in some places been truncated 
  - [Kubernetes Orchestration](linux/exercises/kube-orchestration.md)
  - [Provisioning Kube Config](linux/exercises/provisioning-kube-config.md)
  - [Kubernetes Networking](linux/exercises/kube-networking.md)
+ - [Kubernetes Storage](linux/exercises/kubernetes-storage.md)
+ - [Kubernetes Ingress](linux/exercises/kubernetes-ingress.md)
  - [Cleaning up Docker Resources](linux/exercises/cleaning-up-docker-resources.md)
  - [Inspection Commands](linux/exercises/inspection-commands.md)
  <!-- - [Docker Plugins](linux/exercises/plugins.md) -->
