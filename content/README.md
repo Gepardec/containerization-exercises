@@ -38,6 +38,7 @@ Please note that examples of expected output have in some places been truncated 
  - [Kubernetes Networking](linux/exercises/kube-networking.md)
  - [Kubernetes Storage](linux/exercises/kubernetes-storage.md)
  - [Kubernetes Ingress](linux/exercises/kubernetes-ingress.md)
+ - [Kubernetes Wrapup](linux/exercises/kubernetes-wrapup.md)
  - [Cleaning up Docker Resources](linux/exercises/cleaning-up-docker-resources.md)
  - [Inspection Commands](linux/exercises/inspection-commands.md)
  <!-- - [Docker Plugins](linux/exercises/plugins.md) -->
