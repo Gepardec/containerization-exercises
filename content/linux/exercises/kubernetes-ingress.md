@@ -17,12 +17,15 @@ An Ingress basically connects Services to externally-reachable URLs.
 
 ## Ingress Controller
 
-In order for an Ingress to work, we first need to install an Ingress controller. For simplicity, we will install Traefik.
+In order for an Ingress to work, we first need to install an Ingress controller. For simplicity, we will install Ingress-Nginx. 
+We also need to set several settings, to make it work with our current bare-metal setup.
 
 ```bash
-helm repo add traefik https://helm.traefik.io/traefik
+helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
 helm repo update
-helm install traefik traefik/traefik --namespace kube-system
+
+helm install ingress-nginx ingress-nginx/ingress-nginx -n kube-system \
+--set controller.hostNetwork=true,controller.kind=DaemonSet,controller.ingressClassResource.default=true,controller.watchIngressWithoutClass=true
 ```
 
 ## Demo App

@@ -55,8 +55,8 @@ spec:
 After creating the claim, we can create the pod that uses this claim.
 You can check the status of your claim by running:
 ```bash
-k get pvc #check the claim
-k get pv #check the created volume
+kubectl get pvc #check the claim
+kubectl get pv #check the created volume
 ```
 
 ```yaml
@@ -82,13 +82,13 @@ After your pod is running, your persistent volume will be mounted to `/pvc-usage
 Try to write a file to your persistent volume:
 
 ```bash
-k exec -it pvc-usage-pod — /bin/sh
+kubectl exec -it pvc-usage-pod — /bin/sh
 touch /pvc-usage-volume/test.txt
 ```
 
 Now, delete and recreate your pod. After the pod is running, you should see the file in your persistent volume.
 ```bash
-k exec -it pvc-usage-pod — /bin/sh
+kubectl exec -it pvc-usage-pod — /bin/sh
 ls /pvc-usage-volume
 ```
 
@@ -138,8 +138,8 @@ spec:
 The statefulset creates a PVC for each replica.
 
 ```bash
-k get pods #to check if the deployment was successful
-k get pvc #to check if the PVCs were created
+kubectl get pods #to check if the deployment was successful
+kubectl get pvc #to check if the PVCs were created
 ```
 
 ## Scaling a statefulset
@@ -147,17 +147,17 @@ k get pvc #to check if the PVCs were created
 With statefulsets, we have the advantage that each replica gets their own PVC. For demonstration, let's scale our statefulset to 3 replicas.
 
 ```bash
-k scale sts mongo —replicas 3
-k get pods # check the pods being created
-k get pvc # check how many pvc were created
+kubectl scale sts mongo —replicas 3
+kubectl get pods # check the pods being created
+kubectl get pvc # check how many pvc were created
 ```
 
 ## Cleanup
 
 ```bash
-k delete sts mongo
-k delete pod pvc-usage-pod
-k delete pvc foo-pvc
+kubectl delete sts mongo
+kubectl delete pod pvc-usage-pod
+kubectl delete pvc foo-pvc
 ```
 
 ## Sources
