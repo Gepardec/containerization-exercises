@@ -1,0 +1,80 @@
+<html>
+<head>
+    <title>kubernetes-ingress.md</title>
+    <link href='https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css' rel='stylesheet' integrity='sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u' crossorigin='anonymous'>
+    <link href="../../app.css" rel="stylesheet" >
+</head>
+<body>
+    <nav class="navbar navbar-default">
+    <div class="container">
+        <!-- Brand and toggle get grouped for better mobile display -->
+        <div class="navbar-header">
+        <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1" aria-expanded="false">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+        </button>
+        <a class="navbar-brand" href="../../index.html"><img class="logo" src="https://www.gepardec.com/files/gepardec_logo_dark_background.svg" alt="Gepardec" title="Gepardec"/ style="width:auto !important; height:"></a> 
+        <h1 class="navbar-title">Exercises</h1>
+        
+        </div>
+    </div><!-- /.container-fluid -->
+    </nav>
+    <div class="container">
+    <div class="row">
+        <div class="content">
+            <h1 id="kubernetes-ingress">Kubernetes Ingress</h1>
+<p>By the end of this exercise, you should be able to:</p>
+<ul>
+<li>Understand the purpose of ingresses</li>
+<li>Know how to make your app publicly accessible.</li>
+</ul>
+<h2 id="ingress-vs-service">Ingress vs Service</h2>
+<p>With services, we exposed our pods to the internal kubernetes network. We also managed to load balance our traffic across multiple pods. Now, we also want to enable access to our pod from the outside world. </p>
+<h2 id="ingress">Ingress</h2>
+<p>Ingress exposes HTTP and HTTPS routes from outside the cluster to services within the cluster. Traffic routing is controlled by rules defined on the Ingress resource.</p>
+<p>An Ingress basically connects Services to externally-reachable URLs.</p>
+<h2 id="ingress-controller">Ingress Controller</h2>
+<p>In order for an Ingress to work, we first need to install an Ingress controller. For simplicity, we will install Ingress-Nginx. 
+We also need to set several settings, to make it work with our current bare-metal setup.</p>
+<pre><code class="lang-bash">helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+helm repo update
+
+helm install ingress-nginx ingress-nginx/ingress-nginx -n kube-system \
+--set controller.hostNetwork=true,controller.kind=DaemonSet,controller.ingressClassResource.default=true,controller.watchIngressWithoutClass=true
+</code></pre>
+<h2 id="demo-app">Demo App</h2>
+<p>For demonstration, lets just start a simple pod with a service:</p>
+<pre><code class="lang-bash">kubectl run example --image strm/helloworld-http --port 80 --expose true 
+</code></pre>
+<p>This is a simple web server that will respond to requests with &quot;Hello, World!&quot;.
+Now, to expose the service to the outside world, we need to create an Ingress.</p>
+<pre><code class="lang-yaml">apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: example-ingress
+spec:
+  rules:
+  - http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: example
+            port:
+              number: 80
+</code></pre>
+<p>This directs all http traffic to port 80 of the service.
+Try out the service by typing the ip address of any node into your browser.</p>
+
+        </div>        
+    </div>
+    <div class="row">
+        <ul class="mt-article-pagination" style="display:block;">
+        </ul>
+    </div>
+</div>
+    <div class="footer"></div>
+</body>

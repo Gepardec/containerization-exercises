@@ -1,0 +1,197 @@
+<html>
+<head>
+    <title>kubernetes-wrapup.md</title>
+    <link href='https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css' rel='stylesheet' integrity='sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u' crossorigin='anonymous'>
+    <link href="../../app.css" rel="stylesheet" >
+</head>
+<body>
+    <nav class="navbar navbar-default">
+    <div class="container">
+        <!-- Brand and toggle get grouped for better mobile display -->
+        <div class="navbar-header">
+        <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1" aria-expanded="false">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+        </button>
+        <a class="navbar-brand" href="../../index.html"><img class="logo" src="https://www.gepardec.com/files/gepardec_logo_dark_background.svg" alt="Gepardec" title="Gepardec"/ style="width:auto !important; height:"></a> 
+        <h1 class="navbar-title">Exercises</h1>
+        
+        </div>
+    </div><!-- /.container-fluid -->
+    </nav>
+    <div class="container">
+    <div class="row">
+        <div class="content">
+            <h1 id="wrapup-exercise">Wrapup Exercise</h1>
+<p>In this Exercise, you need to combine a few skills you have learned today. We will:</p>
+<ul>
+<li>Deploy a Chat application</li>
+<li>Deploy a Database</li>
+<li>Enable access to the application from the outside world</li>
+<li>Test the application for failure recovery</li>
+</ul>
+<h3 id="task-1">Task 1</h3>
+<ul>
+<li>Create a StatefulSet to deploy a MongoDB database (<code>image: mongo</code>).</li>
+<li>Make the database data persistent (files are saved in <code>/data/db</code>)</li>
+<li>Use the following container command to configure mongodb: <code>mongod --oplogSize 128 --replSet rs0 --bind_ip_all</code></li>
+<li>After the database is deployed, connect to it (<code>kubectl exec -it mongo-0 -- mongo</code>) and initialize a replica set using the following command:  </li>
+<li><code>rs.initiate({_id: &#39;rs0&#39;,members: [ { _id: 0, host: &#39;localhost:27017&#39; } ]});</code></li>
+<li>Expose Port 27017 of the Database as a Service.</li>
+</ul>
+<h3 id="task-2">Task 2</h3>
+<ul>
+<li>Create a Deployment for the Rocket Chat application.</li>
+<li>Expose Port 3000 of the application as a Service.</li>
+<li>Use the environment variables below to configure the application:<pre><code class="lang-yaml">image: registry.rocket.chat/rocketchat/rocket.chat:latest
+env:
+- PORT=3000
+- ROOT_URL=http://localhost:3000
+- MONGO_URL=mongodb://mongo:27017/rocketchat
+- MONGO_OPLOG_URL=mongodb://mongo:27017/local
+</code></pre>
+</li>
+</ul>
+<h3 id="task-3">Task 3</h3>
+<ul>
+<li>Create an Ingress to access the application fron the outside world.</li>
+</ul>
+<h3 id="task-4">Task 4</h3>
+<ul>
+<li>Check if its working :)</li>
+</ul>
+<h2 id="example-solution">Example Solution</h2>
+<ul>
+<li><p>Task 1  </p>
+<pre><code class="lang-yaml">apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: mongo
+spec:
+  selector:
+    matchLabels:
+      app: mongo
+  serviceName: &quot;mongo&quot;
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: mongo
+    spec:
+      terminationGracePeriodSeconds: 10
+      containers:
+      - name: mongo
+        image: mongo
+        env:
+        - name: MONGO_INITDB_DATABASE
+          value: rocketchat
+        ports:
+        - containerPort: 27017
+          name: mongo
+        volumeMounts:
+        - name: data
+          mountPath: /data/db
+        command:
+          - /bin/sh
+          - -c
+          - |-
+            mongod --oplogSize 128 --replSet rs0 --bind_ip_all
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes: [ &quot;ReadWriteOnce&quot; ]
+      storageClassName: longhorn
+      resources:
+        requests:
+          storage: 512Mi
+</code></pre>
+<pre><code class="lang-yaml">apiVersion: v1
+kind: Service
+metadata:
+  name: mongo
+spec:
+  selector:
+    app: mongo
+  ports:
+  - port: 27017
+    targetPort: 27017
+    protocol: TCP
+</code></pre>
+</li>
+<li><p>Task 2  </p>
+<pre><code class="lang-yaml">apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rocketchat
+  labels:
+    app: rocketchat
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rocketchat
+  template:
+    metadata:
+      labels:
+        app: rocketchat
+    spec:
+      containers:
+      - name: rocketchat
+        image: registry.rocket.chat/rocketchat/rocket.chat:latest
+        ports:
+        - containerPort: 3000
+        env:
+        - name: PORT
+          value: &quot;3000&quot;
+        - name: ROOT_URL
+          value: &quot;http://localhost:3000&quot;
+        - name: MONGO_URL
+          value: &quot;mongodb://mongo:27017/rocketchat&quot;
+        - name: MONGO_OPLOG_URL
+          value: &quot;mongodb://mongo:27017/local&quot;
+</code></pre>
+<pre><code class="lang-yaml">apiVersion: v1
+kind: Service
+metadata:
+  name: rocketchat
+spec:
+  selector:
+    app: rocketchat
+  ports:
+  - port: 3000
+    targetPort: 3000
+    protocol: TCP
+</code></pre>
+</li>
+<li><p>Task 3  </p>
+<pre><code class="lang-yaml">apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: rocketchat
+spec:
+  rules:
+  - http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: rocketchat
+            port:
+              number: 3000
+</code></pre>
+</li>
+</ul>
+
+        </div>        
+    </div>
+    <div class="row">
+        <ul class="mt-article-pagination" style="display:block;">
+        </ul>
+    </div>
+</div>
+    <div class="footer"></div>
+</body>

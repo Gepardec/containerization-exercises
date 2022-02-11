@@ -1,0 +1,158 @@
+<html>
+<head>
+    <title>kubernetes-storage.md</title>
+    <link href='https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css' rel='stylesheet' integrity='sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u' crossorigin='anonymous'>
+    <link href="../../app.css" rel="stylesheet" >
+</head>
+<body>
+    <nav class="navbar navbar-default">
+    <div class="container">
+        <!-- Brand and toggle get grouped for better mobile display -->
+        <div class="navbar-header">
+        <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1" aria-expanded="false">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+        </button>
+        <a class="navbar-brand" href="../../index.html"><img class="logo" src="https://www.gepardec.com/files/gepardec_logo_dark_background.svg" alt="Gepardec" title="Gepardec"/ style="width:auto !important; height:"></a> 
+        <h1 class="navbar-title">Exercises</h1>
+        
+        </div>
+    </div><!-- /.container-fluid -->
+    </nav>
+    <div class="container">
+    <div class="row">
+        <div class="content">
+            <h1 id="kubernetes-storage">Kubernetes Storage</h1>
+<p>By the end of this exercise, you should be able to:</p>
+<ul>
+<li>Understand the purpose of storage providers and storage classes</li>
+<li>Know how to persistently store data in Kubernetes</li>
+</ul>
+<h2 id="volumes">Volumes</h2>
+<p>On-disk files in a container are ephemeral, which presents some problems for non-trivial applications when running in containers. One problem is the loss of files when a container crashes. The kubelet restarts the container but with a clean state. A second problem occurs when sharing files between containers running together in a Pod. The Kubernetes volume abstraction solves both of these problem.</p>
+<p>Out of the box, kubernetes can store persistent data locally on a node. But If the node fails, the data is lost. To really get fail safe storage, where our data will be replicated across multiple nodes, we need to install and use a storage provisioner.</p>
+<h2 id="storage-provisioner">Storage Provisioner</h2>
+<p>Storage providers handle storage location, replication and dynamic volume creation in kubernetes. In this example, we will install Rancher Longhorn. If you run kubernetes inside AWS, Azure or GC, you can use the their cloud volumes out of the box, without installing a storage provisioner.</p>
+<pre><code class="lang-bash">helm repo add longhorn https://charts.longhorn.io
+helm repo update
+kubectl create namespace longhorn-system
+helm install longhorn longhorn/longhorn --namespace longhorn-system
+</code></pre>
+<p>Time to refill your coffee. This will take a few minutes. You can check the status of the installation by running:</p>
+<pre><code class="lang-bash">kubectl -n longhorn-system get pod
+</code></pre>
+<p>You should see several running containers.</p>
+<h2 id="how-does-it-work-">How does it work?</h2>
+<p>Longhorn saves all volumes in /var/lib/longhorn, but replicates it to 2 different nodes. Therefore, we will not lose any data when a node fails.</p>
+<h2 id="persistent-volume-claim">Persistent Volume Claim</h2>
+<p>To use a persistent volume for our pod, we need to create a persistent volume claim (PVC).</p>
+<pre><code class="lang-yaml">apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: foo-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: longhorn
+  resources:
+    requests:
+      storage: 1Gi
+</code></pre>
+<p>After creating the claim, we can create the pod that uses this claim.
+You can check the status of your claim by running:</p>
+<pre><code class="lang-bash">kubectl get pvc #check the claim
+kubectl get pv #check the created volume
+</code></pre>
+<pre><code class="lang-yaml">apiVersion: v1
+kind: Pod
+metadata:
+  name: pvc-usage-pod
+spec:
+  containers:
+  - name: pvc-usage-pod
+    image: busybox
+    command: [&quot;/bin/sh&quot;, &quot;-c&quot;, &quot;while true; do sleep 1; done&quot;]
+    volumeMounts:
+    - name: pvc-usage-volume
+      mountPath: /pvc-usage-volume
+  volumes:
+  - name: pvc-usage-volume
+    persistentVolumeClaim:
+      claimName: foo-pvc
+</code></pre>
+<p>After your pod is running, your persistent volume will be mounted to <code>/pvc-usage-volume</code>.
+Try to write a file to your persistent volume:</p>
+<pre><code class="lang-bash">kubectl exec -it pvc-usage-pod — /bin/sh
+touch /pvc-usage-volume/test.txt
+</code></pre>
+<p>Now, delete and recreate your pod. After the pod is running, you should see the file in your persistent volume.</p>
+<pre><code class="lang-bash">kubectl exec -it pvc-usage-pod — /bin/sh
+ls /pvc-usage-volume
+</code></pre>
+<h2 id="statefulset">StatefulSet</h2>
+<p>Statefulsets (STS) are like deployments, except they manage their own PVCs automatically. </p>
+<pre><code class="lang-yaml">apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: mongo
+spec:
+  selector:
+    matchLabels:
+      app: mongo
+  serviceName: &quot;mongo&quot;
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: mongo
+    spec:
+      terminationGracePeriodSeconds: 10
+      containers:
+      - name: mongo
+        image: mongo
+        ports:
+        - containerPort: 27017
+          name: mongo
+        volumeMounts:
+        - name: data
+          mountPath: /data/db
+  # STS are using a template, to create the PVC
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes: [ &quot;ReadWriteOnce&quot; ]
+      storageClassName: longhorn
+      resources:
+        requests:
+          storage: 512Mi
+</code></pre>
+<p>The statefulset creates a PVC for each replica.</p>
+<pre><code class="lang-bash">kubectl get pods #to check if the deployment was successful
+kubectl get pvc #to check if the PVCs were created
+</code></pre>
+<h2 id="scaling-a-statefulset">Scaling a statefulset</h2>
+<p>With statefulsets, we have the advantage that each replica gets their own PVC. For demonstration, let&#39;s scale our statefulset to 3 replicas.</p>
+<pre><code class="lang-bash">kubectl scale sts mongo —replicas 3
+kubectl get pods # check the pods being created
+kubectl get pvc # check how many pvc were created
+</code></pre>
+<h2 id="cleanup">Cleanup</h2>
+<pre><code class="lang-bash">kubectl delete sts mongo
+kubectl delete pod pvc-usage-pod
+kubectl delete pvc foo-pvc
+</code></pre>
+<h2 id="sources">Sources</h2>
+<p><a href="https://kubernetes.io/docs/concepts/storage/volumes/">https://kubernetes.io/docs/concepts/storage/volumes/</a></p>
+
+        </div>        
+    </div>
+    <div class="row">
+        <ul class="mt-article-pagination" style="display:block;">
+        </ul>
+    </div>
+</div>
+    <div class="footer"></div>
+</body>
